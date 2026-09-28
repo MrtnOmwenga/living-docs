@@ -1,0 +1,31 @@
+name: Docs checks
+# Structure, append-only Decision History, secrets, prompt-injection and PII
+# checks on every change to the docs. Installed and updated by `living-docs docs upgrade`.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Lint modules
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            node .living-docs/ci/lint.cjs --base "${{ github.event.before }}"
+          else
+            node .living-docs/ci/lint.cjs
+          fi
+      - name: Secret scan (gitleaks)
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest dir /repo --no-banner --redact

@@ -1,0 +1,36 @@
+{
+  "name": "living-docs",
+  "version": "0.1.0",
+  "description": "Project docs that keep themselves up to date: Claude Code hooks file each session's decisions into a shared docs repo, linted before they're pushed, with Context changes and new modules going through review.",
+  "license": "MIT",
+  "author": "Martin Omwenga",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrtnOmwenga/living-docs.git"
+  },
+  "bin": {
+    "living-docs": "./bin/living-docs.cjs"
+  },
+  "files": [
+    "bin",
+    "policy",
+    "integrations",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.cjs\""
+  },
+  "keywords": [
+    "claude-code",
+    "documentation",
+    "adr",
+    "decision-log",
+    "hooks",
+    "cursor",
+    "ai"
+  ]
+}

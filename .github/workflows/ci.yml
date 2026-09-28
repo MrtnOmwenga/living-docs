@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - name: The CLI starts and the package has what it needs
+        run: |
+          node bin/living-docs.cjs --help
+          npm pack --dry-run 2>&1 | tee pack.txt
+          grep -q "policy/documentation-policy.md" pack.txt
+          grep -q "integrations/docs-repo/ci/lint.cjs" pack.txt

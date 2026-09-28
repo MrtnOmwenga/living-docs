@@ -1,0 +1,48 @@
+name: Capture docs from merged PR
+# Installed in a CODE repo by `living-docs docs enable-merge-capture`. When a PR
+# merges, files what it decided/changed into the shared docs repo. Skips branches
+# a developer's Claude Code hooks already captured.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  capture:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read the docs repo location
+        id: docs
+        run: echo "url=$(node -p 'require("./.living-docs/docs.json").docsRepo || ""')" >> "$GITHUB_OUTPUT"
+      - name: Check out the docs repo
+        if: steps.docs.outputs.url != ''
+        run: |
+          # docs.json may hold an https or an ssh URL; CI has a token, not a key, so both use the token.
+          git config --global url."https://x-access-token:${DOCS_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global --add url."https://x-access-token:${DOCS_REPO_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${DOCS_REPO_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git clone "${{ steps.docs.outputs.url }}" .docs-checkout
+        env:
+          DOCS_REPO_TOKEN: ${{ secrets.DOCS_REPO_TOKEN }}
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: Capture
+        if: steps.docs.outputs.url != ''
+        run: node .docs-checkout/.living-docs/ci/capture-merge.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DOCS_REPO_URL: ${{ steps.docs.outputs.url }}
+          DOCS_CHECKOUT: .docs-checkout
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}

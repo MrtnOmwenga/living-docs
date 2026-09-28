@@ -1,0 +1,44 @@
+name: Docs drift audit
+# Weekly: compare each module's Implementation with the code and open ONE PR with
+# corrections. Needs ANTHROPIC_API_KEY (org secret) and CODE_REPOS_TOKEN.
+on:
+  schedule:
+    - cron: "30 6 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: docs
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: Check out the code repos
+        env:
+          GH_TOKEN: ${{ secrets.CODE_REPOS_TOKEN }}
+        run: |
+          mkdir -p code
+          node -e 'console.log((require("./docs/.living-docs/docs-repo.json").codeRepos||[]).join("\n"))' | while read -r repo; do
+            [ -n "$repo" ] && gh repo clone "$repo" "code/${repo#*/}" -- --depth 1
+          done
+      - name: Audit
+        working-directory: docs
+        env:
+          # A PR opened with the default token doesn't trigger other workflows, so the
+          # audit's PR would skip the lint check and the Slack notification. A bot/PAT
+          # token (DOCS_BOT_TOKEN) makes them run; without it the PR still opens.
+          GH_TOKEN: ${{ secrets.DOCS_BOT_TOKEN || github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          args=""
+          for d in ../code/*/; do args="$args --code $d"; done
+          node .living-docs/ci/drift.cjs $args

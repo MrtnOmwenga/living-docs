@@ -1,0 +1,43 @@
+name: Docs lifecycle
+# Merges held-Implementation PRs when their code PR merges, and reminds / closes
+# PRs nobody reviewed. Also the weekly health digest (Mondays).
+on:
+  schedule:
+    - cron: "17 * * * *"      # hourly: follow code merges
+    - cron: "5 7 * * 1"       # weekly digest
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lifecycle:
+    if: github.event.schedule != '5 7 * * 1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node .living-docs/ci/lifecycle.cjs
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_BOT_TOKEN || github.token }}
+          # Read access to the CODE repos, to see whether a code PR merged.
+          CODE_REPOS_TOKEN: ${{ secrets.CODE_REPOS_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  digest:
+    if: github.event.schedule == '5 7 * * 1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node .living-docs/ci/digest.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
